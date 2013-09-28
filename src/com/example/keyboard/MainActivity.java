@@ -3,6 +3,8 @@ package com.example.keyboard;
 import java.util.ArrayList;
 import java.lang.Thread;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.os.SystemClock;
 import android.app.Activity;
 import android.util.Log;
@@ -22,6 +24,15 @@ public class MainActivity extends Activity {
 	
 	//keys physical change
 	private class PhyChange {
+		public PhyChange() {
+			this(0, 0, 0, 0);
+		}
+		public PhyChange(int i, int j, int k, int l) {
+			sizeX = i;
+			sizeY = j;
+			posiX = k;
+			posiY = l;
+		}
 		public int sizeX = 0;
 		public int sizeY = 0;
 		public int posiX = 0;
@@ -42,6 +53,24 @@ public class MainActivity extends Activity {
 	
 	private ArrayList<Row> rows;
 	private Thread mthread = null;
+	private Handler mHandler0 = new Handler () {
+		@Override
+		public void handleMessage(Message msg) {
+			if (msg.getData().getInt("thread") == 0) {
+				changePhy();
+			}
+			super.handleMessage(msg);
+		}
+	};
+	private Handler mHandler1 = new Handler () {
+		 @Override
+		public void handleMessage(Message msg) {
+			if (msg.getData().getInt("thread") == 1) {
+				setDefaultParam();
+			}
+			super.handleMessage(msg);
+		}
+	};
 	
 	private void initKeyboard () {
 		rows = new ArrayList<Row> (4);
@@ -105,20 +134,39 @@ public class MainActivity extends Activity {
 			}
 		}
 	}
-	private class cPosiThread extends Thread{
-		private MainActivity act;
-		public cPosiThread(MainActivity a) {
-			this.act = a;
-		}
-		
+	private class cPosiThread extends Thread{		
 		public void run() {
 			try {
 				Log.d("THREAD", "thread start");
-				act.changePhy();
+
+				//set position and size
+				Message msg0 = new Message();
+				msg0.setTarget(mHandler0);
+				Bundle b0 = new Bundle();
+				b0.putInt("thread", 0);
+				msg0.setData(b0);
+				msg0.sendToTarget();
+				
 				sleep(30000);
+				Log.d("THREAD", "have slept 3s");
+				
+				//huifu
+				Message msg1 = new Message();
+				msg1.setTarget(mHandler1);
+				Bundle b1 = new Bundle();
+				b1.putInt("thread", 1);
+				msg1.setData(b1);
+				msg1.sendToTarget();
 			}
 			catch (InterruptedException e) {
-				act.setDefaultParam();
+				/*
+				Message msg1 = new Message();
+				msg1.setTarget(mHandler1);
+				Bundle b1 = new Bundle();
+				b1.putInt("thread", 1);
+				msg1.setData(b1);
+				msg1.sendToTarget();
+				*/
 			}
 		}
 	};
@@ -139,7 +187,7 @@ public class MainActivity extends Activity {
 					if (v.getId() == rows.get(i).keys.get(j).btn.getId()) {
 						Button tmp = rows.get(i).keys.get(j).btn;
 						Log.d("MM", "Click Button ID: " + Integer.toString(v.getId()));
-						calParam(null);
+						calParam(v.getId());
 						if (mthread != null) {
 							try {
 								mthread.interrupt();
@@ -149,7 +197,7 @@ public class MainActivity extends Activity {
 								Log.d("MM", "can not stop the thread");
 							}
 						}
-						mthread = new cPosiThread(me);
+						mthread = new cPosiThread();
 						mthread.start();
 						return;
 					}
@@ -163,10 +211,16 @@ public class MainActivity extends Activity {
 		
 	}
 	
-	private boolean calParam(int[] weight) {
-		rows.get(0).keys.get(4).phyChange.posiY += -100;
-		rows.get(0).keys.get(4).phyChange.sizeX += 30;
-		rows.get(0).keys.get(4).phyChange.sizeY += 30;
+	private boolean calParam(int id) {
+		for (int i = 0; i < rows.size(); ++i) {
+			for (int j = 0; j < rows.get(i).keys.size(); ++j) {
+				Key key = rows.get(i).keys.get(j);
+				key.phyChange = new PhyChange();
+			}
+		}
+		//rows.get(id/10).keys.get(id%10).phyChange.posiY += -100;
+		rows.get(id/10).keys.get(id%10).phyChange.sizeX += 30;
+		rows.get(id/10).keys.get(id%10).phyChange.sizeY += 30;
 		return true;
 		/*
 		if (weight.length != 26) return false;
@@ -184,75 +238,7 @@ public class MainActivity extends Activity {
 	private ArrayList<ArrayList<Button>> buttons;
 	private ArrayList<ArrayList<RelativeLayout.LayoutParams>> params_d;
 	private boolean flag = true;
-	/*
-	private ArrayList<ArrayList<RelativeLayout.LayoutParams>> calParam(int x, int y) {
-		ArrayList<ArrayList<RelativeLayout.LayoutParams>> res = new ArrayList<ArrayList<RelativeLayout.LayoutParams>>(4);
-		for (int i = 0; i < 4; ++i) {
-			res.add(new ArrayList<RelativeLayout.LayoutParams>(10));
-			for (int j = 0; j < 10; ++j) {
-				res.get(i).add((RelativeLayout.LayoutParams)buttons.get(i).get(j).getLayoutParams());
-			}
-		}
-		RelativeLayout.LayoutParams para = new RelativeLayout.LayoutParams(res.get(x).get(y).width+10, 
-																		   res.get(x).get(y).height+10);
-		para.setMargins(res.get(x).get(y).leftMargin, res.get(x).get(y).topMargin+100, 0 , 0);
-		res.get(x).set(y, para);
-		return res;
-	}
-	*/
 	
-	/*
-	private void setParam(ArrayList<ArrayList<RelativeLayout.LayoutParams>> paras) {
-		for (int i = 0; i < paras.size(); ++i) {
-			for (int j = 0; j < paras.get(i).size(); ++j) {
-				buttons.get(i).get(j).setLayoutParams(paras.get(i).get(j));
-			}
-		}
-	}
-	*/
-	/*
-	private Button.OnClickListener btnClick = new Button.OnClickListener() {
-		public void onClick(View v) {
-			Log.d("MM", "click");
-			if (flag) setParam(calParam(3,5));
-			else setParam(params_d);
-			flag = !flag;
-			//Log.d("MM", "start sleep");
-			//SystemClock.sleep(1000);
-			//Log.d("MM", "end sleep");
-			//setParam(params_d);
-			
-			RelativeLayout.LayoutParams param = new RelativeLayout.LayoutParams(50, 50);
-			buttons.get(0).get(0).setLayoutParams(param);
-			buttons.get(0).get(0).setText("1");
-			buttons.get(0).get(0).setTextSize(10);
-			
-		}
-	};
-	
-	
-	private void initKeyboard () {
-		params_d = new ArrayList<ArrayList<RelativeLayout.LayoutParams>>(4);
-		buttons = new ArrayList<ArrayList<Button>> (4);
-		for (int i = 0; i < 4; ++i) {
-			params_d.add(new ArrayList<RelativeLayout.LayoutParams>(10));
-			buttons.add(new ArrayList<Button>(10));
-			for (int j = 0; j < 10; ++j) {
-				Button tmpb = new Button(this);
-				tmpb.setId(i*10+j);
-				RelativeLayout.LayoutParams param = new RelativeLayout.LayoutParams(40, 45);
-				param.setMargins(10+j*45,200+50*i, 0, 0);
-				Log.d("AA", Integer.toString(param.height));
-				tmpb.setLayoutParams(param);
-				tmpb.setText(Integer.toString(j));
-				tmpb.setTextSize(7);
-				tmpb.setOnClickListener(btnClick);
-				params_d.get(i).add(param);
-				buttons.get(i).add(tmpb);
-			}
-		}
-	}
-	*/
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
